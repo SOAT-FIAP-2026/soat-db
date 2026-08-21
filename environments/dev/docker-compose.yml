@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  floci:
+    image: floci/floci:latest
+    container_name: floci-dev
+    ports:
+      - "4566:4566"
+      # O Floci também pode expor portas para RDS Proxy (7001-7099) e ElastiCache (6379-6399) caso necessite futuramente
+      - "7001-7099:7001-7099" 
+    environment:
+      # Hostname padrão interno
+      FLOCI_HOSTNAME: floci
+      # Se você precisa que os dados persistam entre reinicializações do docker-compose:
+      FLOCI_STORAGE_MODE: persistent
+      FLOCI_STORAGE_PERSISTENT_PATH: /app/data
+    volumes:
+      - floci-data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  floci-data:
