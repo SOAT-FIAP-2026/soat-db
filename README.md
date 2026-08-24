@@ -1,42 +1,207 @@
-# Tech Challenge - Infraestrutura do Banco de Dados Gerenciado
+# Tech Challenge - Infraestrutura do Banco de Dados (Terraform)
 
-Repositório responsável pelo provisionamento da infraestrutura de banco de dados (RDS PostgreSQL) utilizando **Terraform**.
-Faz parte da Fase 3 do Tech Challenge, especificamente para atender a necessidade de desacoplamento do repositório de dados.
+Repositório responsável pelo provisionamento da infraestrutura de banco de dados (RDS PostgreSQL) na AWS utilizando **Terraform**.
+Faz parte da Fase 3 do Tech Challenge — repositório dedicado ao desacoplamento da infraestrutura de dados.
 
 ## Tecnologias
 
 - [Terraform](https://www.terraform.io/)
 - [AWS (Amazon Web Services)](https://aws.amazon.com/)
-- [PostgreSQL](https://www.postgresql.org/)
+- [Amazon RDS](https://aws.amazon.com/rds/) (PostgreSQL 16.14)
+- [Floci / LocalStack](https://github.com/floci/floci) (emulação local)
+- [Docker Compose](https://docs.docker.com/compose/)
 - [GitHub Actions](https://github.com/features/actions)
 
 ## Arquitetura
 
 O Terraform neste repositório provisiona:
-- 1 Instância AWS RDS PostgreSQL (`db.t3.micro`, 20GB `gp2`, Single-AZ).
-- Security Group dedicado para o RDS, liberando tráfego apenas na porta `5432` para IPs e SGs provenientes da VPC/EKS.
-- DB Subnet Group associado às subnets privadas da VPC.
 
-## Pré-Requisitos
+- **RDS PostgreSQL** (engine 16.14) com configurações parametrizáveis por ambiente.
+- **Security Group** dedicado para o RDS, liberando tráfego apenas na porta `5432` a partir do EKS.
+- **DB Subnet Group** associado às subnets da VPC (mínimo 2 AZs).
 
-- Conta ativa na AWS
-- Chaves de acesso AWS configuradas localmente (`~/.aws/credentials`) ou no GitHub Secrets (`AWS_ACCESS_KEY_ID` e `AWS_SECRET_ACCESS_KEY`)
-- Terraform instalado (versão recomendada `~> 5.0` do provider AWS)
+### Diagrama de Componentes
 
-## Execução Local (Testes)
+```
+┌─────────────────────────────────────────────────────────┐
+│                      AWS (us-east-1)                     │
+│                                                         │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │                 VPC (do repo infra-k8s)            │  │
+│  │                                                   │  │
+│  │  ┌──────────────┐    ┌──────────────┐            │  │
+│  │  │ Subnet AZ-1  │    │ Subnet AZ-2  │            │  │
+│  │  └──────┬───────┘    └──────┬───────┘            │  │
+│  │         │                   │                     │  │
+│  │  ┌──────┴───────────────────┴──────────────────┐  │  │
+│  │  │             DB Subnet Group                 │  │  │
+│  │  │                                             │  │  │
+│  │  │  ┌────────────────────────────────────────┐ │  │  │
+│  │  │  │   RDS PostgreSQL 16.14                 │ │  │  │
+│  │  │  │   db.t3.micro (dev) / db.t3.medium (p) │ │  │  │
+│  │  │  │   porta: 5432                          │ │  │  │
+│  │  │  └────────────────────────────────────────┘ │  │  │
+│  │  │                                             │  │  │
+│  │  │  ┌──────────────────────┐                   │  │  │
+│  │  │  │  Security Group RDS  │                   │  │  │
+│  │  │  │  ingress: EKS SG     │                   │  │  │
+│  │  │  │  ingress: VPC CIDR   │                   │  │  │
+│  │  │  └──────────────────────┘                   │  │  │
+│  │  └─────────────────────────────────────────────┘  │  │
+│  │                                                   │  │
+│  └───────────────────────────────────────────────────┘  │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
 
-Para validar e executar localmente:
+## Estrutura do Repositório
 
-1. Clone o repositório
-2. Crie um arquivo `terraform.tfvars` preenchendo as variáveis requeridas (ver `variables.tf`)
-3. Execute a inicialização e os testes:
-   ```bash
-   terraform init
-   terraform plan
-   terraform apply
-   ```
+```
+tech-challenge-infra-db/
+├── modules/
+│   └── rds/               # Módulo reutilizável de RDS PostgreSQL
+│       ├── main.tf         # RDS Instance, Security Group, Subnet Group
+│       ├── variables.tf    # 18 variáveis parametrizáveis
+│       └── outputs.tf      # endpoint, host, port, db_name, identifier
+├── environments/
+│   ├── dev/                # Desenvolvimento local (Floci compartilhado)
+│   │   ├── docker-compose.yml   # Referência → usar o Floci da raiz do workspace
+│   │   ├── providers.tf         # Endpoints apontam para localhost:4566
+│   │   ├── main.tf              # RDS mínimo, sem rede (Floci não emula SG)
+│   │   ├── variables.tf         # Defaults seguros para teste local
+│   │   └── outputs.tf
+│   └── prod/               # Produção na AWS
+│       ├── providers.tf         # Backend S3 (comentado), provider AWS real
+│       ├── main.tf              # RDS completo com rede, backup e proteção
+│       ├── variables.tf         # Sem defaults sensíveis (injete via tfvars)
+│       └── outputs.tf
+└── .github/workflows/
+    ├── pr.yml              # CI: terraform fmt, validate, plan
+    └── deploy.yml          # CD: terraform apply
+```
+
+## Ambientes
+
+### Dev (Local com Floci)
+
+O ambiente de desenvolvimento emula o RDS PostgreSQL localmente usando [Floci](https://github.com/floci/floci).
+O estado do Terraform é armazenado **localmente** (`terraform.tfstate`).
+
+> **Nota:** O Floci é uma instância **compartilhada** entre todos os repos de infra.
+> Suba-o uma única vez na raiz do workspace (`FIAP - TC/`).
+
+```bash
+# 1. Subir o Floci compartilhado (se ainda não estiver rodando)
+cd "FIAP - TC/"
+docker compose up -d
+
+# 2. Rodar Terraform
+cd tech-challenge-infra-db/environments/dev
+terraform init
+terraform plan
+terraform apply
+
+# 3. Verificar outputs
+terraform output
+
+# Para destruir recursos emulados
+terraform destroy
+```
+
+**Características do dev:**
+- `instance_class = db.t3.micro`, `storage = 20GB gp2`
+- Sem backup automático (`backup_retention_period = 0`)
+- Sem proteção contra exclusão (`deletion_protection = false`)
+- Recursos de rede **desabilitados** (`create_network_resources = false`)
+- Credenciais default: `postgres` / `postgres`
+
+### Prod (AWS)
+
+O ambiente de produção provisiona um RDS PostgreSQL real na AWS.
+O estado é armazenado **remotamente** em S3 (quando o backend for habilitado).
+
+```bash
+cd environments/prod
+
+# Inicializar o Terraform
+terraform init
+
+# Verificar o plano de execução
+terraform plan
+
+# Aplicar a infraestrutura
+terraform apply
+```
+
+**Características da prod:**
+- `instance_class = db.t3.medium`, `storage = 50GB gp3`
+- Backup automático de 7 dias
+- Proteção contra exclusão habilitada
+- Recursos de rede **completos** (Security Group + Subnet Group)
+- Credenciais **sem default** — injetar via `TF_VAR_*` ou `terraform.tfvars`
+
+## Isolamento de Estado
+
+```
+environments/
+├── dev/
+│   └── terraform.tfstate    ← Estado LOCAL (nunca comitado)
+└── prod/
+    └── (S3 remoto)          ← Configurar backend S3 no providers.tf
+```
+
+## Segurança de Credenciais
+
+⚠️ **NUNCA versione credenciais no repositório!**
+
+| Método | Quando Usar |
+|---|---|
+| `terraform.tfvars` (não versionado) | Desenvolvimento local |
+| `TF_VAR_db_password="..."` | Linha de comando |
+| GitHub Actions Secrets | CI/CD |
+| AWS Secrets Manager / SSM | Produção (recomendado) |
 
 ## CI/CD e Deploy Automático
 
-A infraestrutura é automaticamente validada (Terraform Plan) quando há um **Pull Request** para as branches `main`/`master` ou `homolog`/`develop`. 
-Após o *merge*, o pipeline de deploy (Terraform Apply) é disparado para atualizar os recursos na nuvem.
+- **Pull Request** → `terraform fmt -check`, `terraform validate`, `terraform plan`
+- **Merge para main** → `terraform apply -auto-approve`
+
+## Outputs Disponíveis
+
+| Output | Descrição |
+|---|---|
+| `endpoint` | Endpoint do RDS (host:port) |
+| `host` | Hostname do RDS (sem porta) |
+| `port` | Porta do PostgreSQL (5432) |
+| `db_name` | Nome do banco de dados |
+| `identifier` | Identificador da instância RDS |
+
+## Dependência Inter-Repositório
+
+Este repositório depende dos outputs do `tech-challenge-infra-k8s` em produção:
+
+| Variável (prod) | Fonte (infra-k8s) |
+|---|---|
+| `vpc_id` | `output.vpc_id` |
+| `vpc_cidr_block` | `output.vpc_cidr_block` |
+| `subnet_ids` | `output.subnet_ids` |
+| `eks_security_group_id` | `output.security_group_id` |
+
+## Pré-Requisitos
+
+### Dev (Local)
+- Docker e Docker Compose instalados
+- Terraform >= 1.5.0
+
+### Prod (AWS)
+- Conta ativa na AWS
+- Chaves de acesso configuradas (`~/.aws/credentials` ou GitHub Secrets)
+- Terraform >= 1.5.0
+- VPC e EKS já provisionados (via `tech-challenge-infra-k8s`)
+
+## Repositórios Relacionados
+
+| Repositório | Descrição |
+|---|---|
+| [fase1-tech-challenge](https://github.com/SOAT-FIAP-2026/fase1-tech-challenge) | Aplicação principal (.NET) executando em Kubernetes |
+| [tech-challenge-infra-k8s](https://github.com/SOAT-FIAP-2026/tech-challenge-infra-k8s) | Infraestrutura Kubernetes (VPC, IAM, EKS) |
