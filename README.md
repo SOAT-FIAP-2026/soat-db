@@ -1,5 +1,8 @@
 # Tech Challenge - Infraestrutura do Banco de Dados (Terraform)
 
+Consulte a [validação de 07/09/2026](docs/validation.md) para resultados dos checks,
+problemas identificados no CI/CD e pendências de deploy.
+
 Repositório responsável pelo provisionamento da infraestrutura de banco de dados (RDS PostgreSQL) na AWS utilizando **Terraform**.
 Faz parte da Fase 3 do Tech Challenge — repositório dedicado ao desacoplamento da infraestrutura de dados.
 
@@ -11,6 +14,7 @@ Faz parte da Fase 3 do Tech Challenge — repositório dedicado ao desacoplament
 - [Floci / LocalStack](https://github.com/floci/floci) (emulação local)
 - [Docker Compose](https://docs.docker.com/compose/)
 - [GitHub Actions](https://github.com/features/actions)
+- CloudWatch/RDS Enhanced Monitoring: integração planejada, ainda não provisionada pelo módulo
 
 ## Arquitetura
 
@@ -79,6 +83,19 @@ tech-challenge-infra-db/
     ├── pr.yml              # CI: terraform fmt, validate, plan
     └── deploy.yml          # CD: terraform apply
 ```
+
+## Monitoramento do banco
+
+O caminho local usa PostgreSQL em container e healthcheck de conexão na API.
+O consumo de CPU e memória do Kubernetes é responsabilidade do repositório soat-infra,
+que configura Prometheus e Grafana. O Compose da aplicação não coleta métricas Kubernetes.
+
+O módulo atual não provisiona alarmes de banco nem Enhanced Monitoring. Esses itens
+permanecem pendentes para o ambiente AWS; não há evidência de RDS ativo nesta revisão.
+
+## API relacionada
+
+Este repositório não expõe uma API. A documentação Swagger da aplicação está em https://github.com/SOAT-FIAP-2026/fase1-tech-challenge e, localmente, em http://localhost:8080/swagger.
 
 ## Ambientes
 
