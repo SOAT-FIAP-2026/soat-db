@@ -39,5 +39,5 @@ module "rds" {
   # Backup & proteção — configurações de produção (1 dia para contas com restrição de Free Tier)
   backup_retention_period = 1     # Máximo permitido para contas AWS Free Tier
   skip_final_snapshot     = false # Exigir snapshot antes de destruir
-  deletion_protection     = true  # Proteger contra exclusão acidental
+  deletion_protection     = false # Propositalmente falso pois é ambiente de de aprendizado
 }
