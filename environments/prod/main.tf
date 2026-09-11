@@ -17,9 +17,9 @@ module "rds" {
   environment  = "prod"
   identifier   = "${var.project_name}-prod-db"
 
-  # Compute & Storage — configurações de produção
-  instance_class    = "db.t3.medium"
-  allocated_storage = 50
+  # Compute & Storage — ajustado para limites da conta Free Tier (db.t3.micro / 20 GB)
+  instance_class    = "db.t3.micro"
+  allocated_storage = 20
   storage_type      = "gp3"
   engine_version    = "16.14"
   multi_az          = false # Habilitar para alta disponibilidade (custo adicional)
@@ -36,8 +36,8 @@ module "rds" {
   subnet_ids               = var.subnet_ids
   eks_security_group_id    = var.eks_security_group_id
 
-  # Backup & proteção — configurações de produção
-  backup_retention_period = 7     # 7 dias de backup automático
+  # Backup & proteção — configurações de produção (1 dia para contas com restrição de Free Tier)
+  backup_retention_period = 1     # Máximo permitido para contas AWS Free Tier
   skip_final_snapshot     = false # Exigir snapshot antes de destruir
   deletion_protection     = true  # Proteger contra exclusão acidental
 }
