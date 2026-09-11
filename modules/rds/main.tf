@@ -63,7 +63,7 @@ resource "aws_security_group" "rds" {
 resource "aws_db_subnet_group" "main" {
   count       = var.create_network_resources ? 1 : 0
   name        = "${var.project_name}-${var.environment}-rds-subnet-group"
-  description = "Subnet group para o RDS PostgreSQL — ${var.environment}"
+  description = "Subnet group para o RDS PostgreSQL ${var.environment}"
   subnet_ids  = var.subnet_ids
 
   tags = {
