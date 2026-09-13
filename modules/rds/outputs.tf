@@ -26,3 +26,19 @@ output "identifier" {
   description = "Identificador da instância RDS"
   value       = aws_db_instance.postgres.identifier
 }
+
+output "cloudwatch_alarm_names" {
+  description = "Nomes dos alarmes CloudWatch criados para o banco (vazio quando enable_cloudwatch_alarms = false)"
+  value = var.enable_cloudwatch_alarms ? [
+    aws_cloudwatch_metric_alarm.cpu_high[0].alarm_name,
+    aws_cloudwatch_metric_alarm.memory_low[0].alarm_name,
+    aws_cloudwatch_metric_alarm.storage_low[0].alarm_name,
+    aws_cloudwatch_metric_alarm.connections_high[0].alarm_name,
+    aws_cloudwatch_metric_alarm.instance_unavailable[0].alarm_name,
+  ] : []
+}
+
+output "enhanced_monitoring_role_arn" {
+  description = "ARN da role de Enhanced Monitoring (vazio quando monitoring_interval = 0)"
+  value       = var.monitoring_interval > 0 ? aws_iam_role.rds_monitoring[0].arn : ""
+}

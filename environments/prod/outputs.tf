@@ -26,3 +26,8 @@ output "identifier" {
   description = "Identificador da instância RDS de Prod"
   value       = module.rds.identifier
 }
+
+output "cloudwatch_alarm_names" {
+  description = "Alarmes CloudWatch criados para o RDS de produção"
+  value       = module.rds.cloudwatch_alarm_names
+}

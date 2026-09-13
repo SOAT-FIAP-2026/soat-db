@@ -12,7 +12,7 @@
 variable "aws_region" {
   description = "Região da AWS para o provisionamento"
   type        = string
-  default     = "us-east-1"
+  default     = "sa-east-1" # deve acompanhar a VPC/EKS provisionada em soat-infra
 }
 
 variable "project_name" {
@@ -63,4 +63,10 @@ variable "subnet_ids" {
 variable "eks_security_group_id" {
   description = "ID do Security Group do cluster EKS"
   type        = string
+}
+
+variable "alarm_sns_topic_arns" {
+  description = "ARNs de tópicos SNS que recebem os alarmes do RDS. Vazio mantém os alarmes visíveis no console, sem notificação."
+  type        = list(string)
+  default     = []
 }
