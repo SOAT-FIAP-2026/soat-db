@@ -1,32 +1,61 @@
 name: "Terraform Deploy"
+
 on:
   push:
     branches:
       - main
-      - master
-      - homolog
-      - develop
+    paths:
+      - "environments/prod/**"
+      - "modules/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-prod
+  cancel-in-progress: false
 
 jobs:
   terraform:
     name: "Terraform Apply"
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: environments/prod
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ vars.AWS_REGION || 'sa-east-1' }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -input=false
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve
+        env:
+          TF_VAR_aws_region: ${{ vars.AWS_REGION || 'sa-east-1' }}
+          TF_VAR_db_username: ${{ secrets.DB_USERNAME }}
+          TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+          TF_VAR_vpc_id: ${{ vars.VPC_ID }}
+          TF_VAR_vpc_cidr_block: ${{ vars.VPC_CIDR_BLOCK }}
+          TF_VAR_subnet_ids: ${{ vars.SUBNET_IDS }}
+          TF_VAR_eks_security_group_id: ${{ vars.EKS_SECURITY_GROUP_ID }}
+          TF_VAR_alarm_sns_topic_arns: ${{ vars.ALARM_SNS_TOPIC_ARNS || '[]' }}
+        run: |
+          if [ -z "$TF_VAR_db_username" ] || [ -z "$TF_VAR_db_password" ]; then
+            echo "Secrets DB_USERNAME e DB_PASSWORD precisam estar definidos no repositorio."
+            exit 1
+          fi
+          terraform apply -auto-approve -input=false

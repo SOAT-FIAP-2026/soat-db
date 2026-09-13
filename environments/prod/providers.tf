@@ -38,7 +38,7 @@ terraform {
   # backend "s3" {
   #   bucket         = "techchallenge-terraform-state-prod"
   #   key            = "prod/rds/terraform.tfstate"
-  #   region         = "us-east-1"
+  #   region         = "sa-east-1"
   #   encrypt        = true
   #   dynamodb_table = "techchallenge-terraform-lock-prod"
   #

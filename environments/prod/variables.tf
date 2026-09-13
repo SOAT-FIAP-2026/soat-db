@@ -12,7 +12,7 @@
 variable "aws_region" {
   description = "Região da AWS para o provisionamento"
   type        = string
-  default     = "us-east-1"
+  default     = "sa-east-1" # deve acompanhar a VPC/EKS provisionada em soat-infra
 }
 
 variable "project_name" {

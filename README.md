@@ -14,7 +14,8 @@ Faz parte da Fase 3 do Tech Challenge — repositório dedicado ao desacoplament
 - [Floci / LocalStack](https://github.com/floci/floci) (emulação local)
 - [Docker Compose](https://docs.docker.com/compose/)
 - [GitHub Actions](https://github.com/features/actions)
-- CloudWatch/RDS Enhanced Monitoring: integração planejada, ainda não provisionada pelo módulo
+- [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/) — alarmes do banco e exportação de logs do PostgreSQL
+- RDS Enhanced Monitoring e Performance Insights: suportados pelo módulo, desligados por padrão (fora do Free Tier)
 
 ## Arquitetura
 
@@ -28,7 +29,7 @@ O Terraform neste repositório provisiona:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                      AWS (us-east-1)                     │
+│                      AWS (sa-east-1)                     │
 │                                                         │
 │  ┌───────────────────────────────────────────────────┐  │
 │  │                 VPC (do repo infra-k8s)            │  │
@@ -65,8 +66,9 @@ tech-challenge-infra-db/
 ├── modules/
 │   └── rds/               # Módulo reutilizável de RDS PostgreSQL
 │       ├── main.tf         # RDS Instance, Security Group, Subnet Group
-│       ├── variables.tf    # 18 variáveis parametrizáveis
-│       └── outputs.tf      # endpoint, host, port, db_name, identifier
+│       ├── monitoring.tf   # Alarmes CloudWatch e role de Enhanced Monitoring
+│       ├── variables.tf    # Variáveis parametrizáveis (rede, backup, alarmes)
+│       └── outputs.tf      # endpoint, host, port, db_name, identifier, alarmes
 ├── environments/
 │   ├── dev/                # Desenvolvimento local (Floci compartilhado)
 │   │   ├── docker-compose.yml   # Referência → usar o Floci da raiz do workspace
@@ -80,8 +82,8 @@ tech-challenge-infra-db/
 │       ├── variables.tf         # Sem defaults sensíveis (injete via tfvars)
 │       └── outputs.tf
 └── .github/workflows/
-    ├── pr.yml              # CI: terraform fmt, validate, plan
-    └── deploy.yml          # CD: terraform apply
+    ├── pr.yml              # CI: fmt recursivo, init, validate e plan em environments/prod
+    └── deploy.yml          # CD: apply em environments/prod a cada push na main
 ```
 
 ## Monitoramento do banco
@@ -117,7 +119,7 @@ Os alarmes ficam desligados por padrão para não quebrar o ambiente local emula
 crie um tópico SNS e passe o ARN:
 
 ```bash
-terraform apply -var='alarm_sns_topic_arns=["arn:aws:sns:us-east-1:<conta>:techchallenge-alertas"]'
+terraform apply -var='alarm_sns_topic_arns=["arn:aws:sns:sa-east-1:<conta>:techchallenge-alertas"]'
 ```
 
 Sem tópico configurado, os alarmes continuam sendo avaliados e visíveis no console e em
@@ -211,8 +213,27 @@ environments/
 
 ## CI/CD e Deploy Automático
 
-- **Pull Request** → `terraform fmt -check`, `terraform validate`, `terraform plan`
-- **Merge para main** → `terraform apply -auto-approve`
+Os dois workflows rodam com `working-directory: environments/prod` — a raiz do
+repositório não tem arquivos `.tf`, então executar o Terraform nela não fazia nada.
+
+- **Pull Request para main** → `terraform fmt -check -recursive` na raiz, `init`,
+  `validate` e `plan` em `environments/prod`
+- **Push na main** tocando `environments/prod/**`, `modules/**` ou o próprio workflow
+  → `terraform apply -auto-approve`, serializado por `concurrency: terraform-prod`
+
+Secrets e variables necessários no repositório:
+
+| Nome | Tipo | Conteúdo |
+|---|---|---|
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` | secret | credenciais de deploy |
+| `DB_USERNAME`, `DB_PASSWORD` | secret | credenciais do banco — sem elas o apply falha com mensagem explícita |
+| `VPC_ID`, `VPC_CIDR_BLOCK`, `EKS_SECURITY_GROUP_ID` | variable | outputs de soat-infra |
+| `SUBNET_IDS` | variable | lista JSON, ex.: `["subnet-aaa","subnet-bbb"]` |
+| `AWS_REGION` | variable | padrão `sa-east-1`, a mesma da VPC |
+| `ALARM_SNS_TOPIC_ARNS` | variable | opcional, lista JSON de tópicos SNS dos alarmes |
+
+A região padrão passou de `us-east-1` para `sa-east-1`: o RDS precisa ficar na mesma
+região da VPC e do EKS provisionados em soat-infra.
 
 ## Outputs Disponíveis
 
