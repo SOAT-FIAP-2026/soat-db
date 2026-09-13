@@ -102,8 +102,11 @@ resource "aws_db_instance" "postgres" {
   skip_final_snapshot     = var.skip_final_snapshot
   deletion_protection     = var.deletion_protection
 
-  # Performance Insights desativado (não é free tier)
-  performance_insights_enabled = false
+  # Observabilidade — ver monitoring.tf. Desativados por padrão para não sair do Free Tier.
+  performance_insights_enabled    = var.performance_insights_enabled
+  monitoring_interval             = var.monitoring_interval
+  monitoring_role_arn             = var.monitoring_interval > 0 ? aws_iam_role.rds_monitoring[0].arn : null
+  enabled_cloudwatch_logs_exports = var.enabled_cloudwatch_logs_exports
 
   # Evitar downtime em atualizações de maintenance
   auto_minor_version_upgrade = true

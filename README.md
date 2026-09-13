@@ -86,12 +86,43 @@ tech-challenge-infra-db/
 
 ## Monitoramento do banco
 
-O caminho local usa PostgreSQL em container e healthcheck de conexão na API.
-O consumo de CPU e memória do Kubernetes é responsabilidade do repositório soat-infra,
-que configura Prometheus e Grafana. O Compose da aplicação não coleta métricas Kubernetes.
+O caminho local usa PostgreSQL em container e healthcheck de conexão na API
+(`AddDbContextCheck` no `/health/ready`). O consumo de CPU e memória do Kubernetes é
+responsabilidade do repositório soat-infra, que configura Prometheus e Grafana. O Compose
+da aplicação não coleta métricas Kubernetes.
 
-O módulo atual não provisiona alarmes de banco nem Enhanced Monitoring. Esses itens
-permanecem pendentes para o ambiente AWS; não há evidência de RDS ativo nesta revisão.
+Para o RDS na AWS, o módulo provisiona alarmes CloudWatch em [`modules/rds/monitoring.tf`](modules/rds/monitoring.tf):
+
+| Alarme | Métrica | Condição padrão |
+|---|---|---|
+| `<projeto>-<env>-rds-cpu-high` | `CPUUtilization` | acima de 80% por 10 minutos |
+| `<projeto>-<env>-rds-freeable-memory-low` | `FreeableMemory` | abaixo de 100 MB por 10 minutos |
+| `<projeto>-<env>-rds-free-storage-low` | `FreeStorageSpace` | abaixo de 2 GB |
+| `<projeto>-<env>-rds-connections-high` | `DatabaseConnections` | acima de 60 conexões por 10 minutos |
+| `<projeto>-<env>-rds-unavailable` | ausência de `CPUUtilization` | sem métricas por 10 minutos |
+
+Variáveis de controle:
+
+| Variável | Padrão | Efeito |
+|---|---|---|
+| `enable_cloudwatch_alarms` | `false` (dev) / `true` (prod) | cria os cinco alarmes acima |
+| `alarm_actions` | `[]` | ARNs de tópicos SNS notificados no disparo e na normalização |
+| `monitoring_interval` | `0` | Enhanced Monitoring em segundos; `0` desativa. Acima de `0` cria a IAM role e **sai do Free Tier** |
+| `performance_insights_enabled` | `false` | Performance Insights; **fora do Free Tier** em `db.t3.micro` |
+| `enabled_cloudwatch_logs_exports` | `[]` (dev) / `["postgresql"]` (prod) | exporta os logs do PostgreSQL para o CloudWatch Logs |
+| `alarm_cpu_threshold`, `alarm_freeable_memory_bytes`, `alarm_free_storage_bytes`, `alarm_connections_threshold` | 80 / 100 MB / 2 GB / 60 | limiares dos alarmes |
+
+Os alarmes ficam desligados por padrão para não quebrar o ambiente local emulado
+(Floci/LocalStack) e para manter a conta dentro do Free Tier. Para receber notificação,
+crie um tópico SNS e passe o ARN:
+
+```bash
+terraform apply -var='alarm_sns_topic_arns=["arn:aws:sns:us-east-1:<conta>:techchallenge-alertas"]'
+```
+
+Sem tópico configurado, os alarmes continuam sendo avaliados e visíveis no console e em
+`aws cloudwatch describe-alarms`, apenas sem envio de notificação. O nome dos alarmes
+criados sai no output `cloudwatch_alarm_names`.
 
 ## API relacionada
 

@@ -64,3 +64,9 @@ variable "eks_security_group_id" {
   description = "ID do Security Group do cluster EKS"
   type        = string
 }
+
+variable "alarm_sns_topic_arns" {
+  description = "ARNs de tópicos SNS que recebem os alarmes do RDS. Vazio mantém os alarmes visíveis no console, sem notificação."
+  type        = list(string)
+  default     = []
+}

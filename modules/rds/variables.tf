@@ -138,3 +138,66 @@ variable "eks_security_group_id" {
   type        = string
   default     = ""
 }
+
+# ==============================================================================
+# Monitoramento e alarmes
+# ==============================================================================
+
+variable "enable_cloudwatch_alarms" {
+  description = "Cria os alarmes CloudWatch de CPU, memória, armazenamento, conexões e disponibilidade. Mantenha false em ambientes locais emulados."
+  type        = bool
+  default     = false
+}
+
+variable "alarm_actions" {
+  description = "ARNs de tópicos SNS notificados quando um alarme dispara ou volta ao normal. Vazio mantém o alarme apenas visível no console."
+  type        = list(string)
+  default     = []
+}
+
+variable "alarm_cpu_threshold" {
+  description = "Percentual de CPU que dispara o alarme de CPU alta."
+  type        = number
+  default     = 80
+}
+
+variable "alarm_freeable_memory_bytes" {
+  description = "Memória livre mínima em bytes antes de disparar o alarme. Padrão: 100 MB, adequado para db.t3.micro (1 GB)."
+  type        = number
+  default     = 104857600
+}
+
+variable "alarm_free_storage_bytes" {
+  description = "Armazenamento livre mínimo em bytes antes de disparar o alarme. Padrão: 2 GB de 20 GB alocados."
+  type        = number
+  default     = 2147483648
+}
+
+variable "alarm_connections_threshold" {
+  description = "Número de conexões simultâneas que dispara o alarme. db.t3.micro suporta cerca de 87 conexões."
+  type        = number
+  default     = 60
+}
+
+variable "monitoring_interval" {
+  description = "Intervalo do Enhanced Monitoring em segundos (0, 1, 5, 10, 15, 30 ou 60). 0 desativa. Valores acima de 0 geram custo fora do Free Tier."
+  type        = number
+  default     = 0
+
+  validation {
+    condition     = contains([0, 1, 5, 10, 15, 30, 60], var.monitoring_interval)
+    error_message = "monitoring_interval deve ser 0, 1, 5, 10, 15, 30 ou 60."
+  }
+}
+
+variable "performance_insights_enabled" {
+  description = "Ativa o Performance Insights. Fora do Free Tier em instâncias t3.micro."
+  type        = bool
+  default     = false
+}
+
+variable "enabled_cloudwatch_logs_exports" {
+  description = "Logs do PostgreSQL exportados para o CloudWatch Logs. Valores aceitos: postgresql e upgrade."
+  type        = list(string)
+  default     = []
+}

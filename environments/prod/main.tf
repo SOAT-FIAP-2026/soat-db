@@ -40,4 +40,12 @@ module "rds" {
   backup_retention_period = 1     # Máximo permitido para contas AWS Free Tier
   skip_final_snapshot     = true  # Permitir destruir sem snapshot em ambiente de aprendizado
   deletion_protection     = false # Propositalmente falso pois é ambiente de de aprendizado
+
+  # Monitoramento — alarmes CloudWatch (sem custo relevante) ligados em produção.
+  # Enhanced Monitoring e Performance Insights ficam desligados por sairem do Free Tier.
+  enable_cloudwatch_alarms        = true
+  alarm_actions                   = var.alarm_sns_topic_arns
+  monitoring_interval             = 0
+  performance_insights_enabled    = false
+  enabled_cloudwatch_logs_exports = ["postgresql"]
 }
