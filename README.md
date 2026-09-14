@@ -1,6 +1,6 @@
 # Tech Challenge - Infraestrutura do Banco de Dados (Terraform)
 
-Consulte a [validação de 07/09/2026](docs/validation.md) para resultados dos checks,
+Consulte o arquivo de [validação](docs/validation.md) para entender os resultados dos checks,
 problemas identificados no CI/CD e pendências de deploy.
 
 Repositório responsável pelo provisionamento da infraestrutura de banco de dados (RDS PostgreSQL) na AWS utilizando **Terraform**.
