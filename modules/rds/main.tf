@@ -73,6 +73,7 @@ resource "aws_db_subnet_group" "main" {
   }
 }
 
+
 # --- RDS Instance -------------------------------------------------------------
 resource "aws_db_instance" "postgres" {
   identifier = var.identifier
