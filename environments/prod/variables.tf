@@ -43,26 +43,36 @@ variable "db_password" {
   # Sem default! Injete via TF_VAR_db_password ou terraform.tfvars
 }
 
-# --- Rede (obrigatório — valores reais da infraestrutura AWS) -----------------
+# --- Rede ---------------------------------------------------------------------
+
+variable "use_remote_state" {
+  description = "Define se os dados de rede devem ser obtidos automaticamente do Remote State do EKS no S3"
+  type        = bool
+  default     = true
+}
 
 variable "vpc_id" {
-  description = "ID da VPC (preencher via tfvars ou data source / Remote State)"
+  description = "ID da VPC (opcional se use_remote_state = true)"
   type        = string
+  default     = ""
 }
 
 variable "vpc_cidr_block" {
-  description = "CIDR block da VPC"
+  description = "CIDR block da VPC (opcional se use_remote_state = true)"
   type        = string
+  default     = ""
 }
 
 variable "subnet_ids" {
-  description = "IDs das subnets privadas para o DB Subnet Group (mínimo 2 AZs)"
+  description = "IDs das subnets para o DB Subnet Group (opcional se use_remote_state = true)"
   type        = list(string)
+  default     = []
 }
 
 variable "eks_security_group_id" {
-  description = "ID do Security Group do cluster EKS"
+  description = "ID do Security Group do cluster EKS (opcional se use_remote_state = true)"
   type        = string
+  default     = ""
 }
 
 variable "alarm_sns_topic_arns" {
