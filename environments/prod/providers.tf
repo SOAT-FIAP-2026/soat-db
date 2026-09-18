@@ -27,27 +27,16 @@ terraform {
   }
 
   # =========================================================================
-  # Backend remoto para estado de produção (S3 + DynamoDB Locking)
+  # Backend remoto — estado armazenado no bucket S3 criado pelo bootstrap
+  # com locking via DynamoDB para evitar applies concorrentes.
   # =========================================================================
-  # Pré-requisitos (criar manualmente ou via outro Terraform antes do init):
-  #   1. Bucket S3 com versionamento habilitado
-  #   2. Tabela DynamoDB com partition key "LockID" (tipo String)
-  #
-  # Descomente e ajuste os valores abaixo antes do primeiro 'terraform init':
-  #
-  # backend "s3" {
-  #   bucket         = "techchallenge-terraform-state-prod"
-  #   key            = "prod/rds/terraform.tfstate"
-  #   region         = "sa-east-1"
-  #   encrypt        = true
-  #   dynamodb_table = "techchallenge-terraform-lock-prod"
-  #
-  #   # Recomendado: habilitar versionamento no bucket S3 para rollback de estado
-  #   # aws s3api put-bucket-versioning \
-  #   #   --bucket techchallenge-terraform-state-prod \
-  #   #   --versioning-configuration Status=Enabled
-  # }
-  # =========================================================================
+  backend "s3" {
+    bucket         = "soat-fiap-tfstate-493499933061"
+    key            = "db/terraform.tfstate"
+    region         = "sa-east-1"
+    dynamodb_table = "soat-fiap-terraform-locks"
+    encrypt        = true
+  }
 }
 
 # Provider padrão da AWS — credenciais via ~/.aws/credentials, env vars,
