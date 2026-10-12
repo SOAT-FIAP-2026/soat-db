@@ -21,7 +21,9 @@ variable "project_name" {
   default     = "techchallenge"
 }
 
-# --- Credenciais (sem default — obrigatório injetar de forma segura) ----------
+# --- Credenciais --------------------------------------------------------------
+# Opcional quando os valores já existem no SSM Parameter Store (bootstrap).
+# Se fornecido via CLI (TF_VAR_*), o valor da variável tem precedência sobre o SSM.
 
 variable "db_name" {
   description = "Nome do banco de dados"
@@ -30,17 +32,17 @@ variable "db_name" {
 }
 
 variable "db_username" {
-  description = "Usuário master do RDS PostgreSQL"
+  description = "Usuário master do RDS PostgreSQL. Se vazio, lê do SSM /techchallenge/prod/db_username."
   type        = string
   sensitive   = true
-  # Sem default! Injete via TF_VAR_db_username ou terraform.tfvars
+  default     = ""
 }
 
 variable "db_password" {
-  description = "Senha master do RDS PostgreSQL"
+  description = "Senha master do RDS PostgreSQL. Se vazio, lê do SSM /techchallenge/prod/db_password."
   type        = string
   sensitive   = true
-  # Sem default! Injete via TF_VAR_db_password ou terraform.tfvars
+  default     = ""
 }
 
 # --- Rede ---------------------------------------------------------------------
